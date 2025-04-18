@@ -18,6 +18,7 @@ from datasets import data_transform, inverse_data_transform
 from datasets.pmub import PMUB
 from datasets.LDFDCT import LDFDCT
 from datasets.BRATS import BRATS
+from datasets.small_dataset import SmallDataset
 from functions.ckpt_util import get_ckpt_path
 from skimage.metrics import structural_similarity as ssim
 import torchvision.utils as tvu
@@ -118,18 +119,18 @@ class Diffusion(object):
 
     
     # Training Fast-DDPM for tasks that have only one condition: image translation and CT denoising.
+    # Which applies to training for X-ray denoising
     def sg_train(self):
         args, config = self.args, self.config
+        # TensorBoard logger (Para visualizar estatísticas dos tensores)
         tb_logger = self.config.tb_logger
         
-        if self.args.dataset=='LDFDCT':
-            # LDFDCT for CT image denoising
-            dataset = LDFDCT(self.config.data.train_dataroot, self.config.data.image_size, split='train')
-            print('Start training your Fast-DDPM model on LDFDCT dataset.')
-        elif self.args.dataset=='BRATS':
-            # BRATS for brain image translation
-            dataset = BRATS(self.config.data.train_dataroot, self.config.data.image_size, split='train')
-            print('Start training your Fast-DDPM model on BRATS dataset.')
+        if self.args.dataset=='SMALL':
+            # small_dataset for VinDrMammo X-ray denoising
+            dataset = SmallDataset(self.config.data.train_dataroot, self.config.data.image_size, split='train')
+            print('Start training your Fast-DDPM model on small-dataset.')
+
+        # Scheduler of noising steps
         print('The scheduler sampling type is {}. The number of involved time steps is {} out of 1000.'.format(self.args.scheduler_type, self.args.timesteps))
         
         train_loader = data.DataLoader(
@@ -146,6 +147,8 @@ class Diffusion(object):
         optimizer = get_optimizer(self.config, model.parameters())
 
         if self.config.model.ema:
+            # The EMA model tracks the "smoothed" version of your main model over time
+            # (if used, will have its weights updated during training)
             ema_helper = EMAHelper(mu=self.config.model.ema_rate)
             ema_helper.register(model)
         else:
@@ -165,12 +168,15 @@ class Diffusion(object):
 
         for epoch in range(start_epoch, self.config.training.n_epochs):
             for i, x in enumerate(train_loader):
-                n = x['LD'].size(0)
+
+                # Dataset - image and name
+                n = x['image'].size(0)
                 model.train()
                 step += 1
-
-                x_img = x['LD'].to(self.device)
-                x_gt = x['FD'].to(self.device)
+                # the goal is to train the model to generate healthy samples,
+                # therefore, both input and reference image will be the same
+                x_gt = x.to(self.device)
+                x_img = x_gt
 
                 e = torch.randn_like(x_gt)
                 b = self.betas

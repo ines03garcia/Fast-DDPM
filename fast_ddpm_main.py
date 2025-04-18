@@ -225,22 +225,21 @@ def main():
 
     try:
         runner = Diffusion(args, config)
+        # If sample argument given, do sample
         if args.sample:
-            if args.dataset=='PMUB':
-                runner.sr_sample()
-            elif args.dataset=='LDFDCT' or args.dataset=='BRATS':
-                runner.sg_sample()
-            else:
-                raise Exception("This script only supports LDFDCT, BRATS and PMUB as sampling dataset. Feel free to add your own.")
+            raise Exception("This script doesn't support sampling for small_dataset yet.")
+        
+        # Else if test argument given, test
         elif args.test:
-            runner.test()
+            #runner.test()
+            raise Exception("This script doesn't support testing for small_dataset yet.")
+        
+        # Else train
         else:
-            if args.dataset=='PMUB':
-                runner.sr_train()
-            elif args.dataset=='LDFDCT' or args.dataset=='BRATS':
+            if args.dataset=='SMALL':
                 runner.sg_train()
             else:
-                raise Exception("This script only supports LDFDCT, BRATS and PMUB as training dataset. Feel free to add your own.")
+                raise Exception("This script only supports small_dataset as training dataset.")
     except Exception:
         logging.error(traceback.format_exc())
 
